@@ -2,12 +2,16 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { api, LABELS } from './api.js';
 import Login from './pages/Login.jsx';
 import Dashboard from './pages/Dashboard.jsx';
+import Monitor from './pages/Monitor.jsx';
+import Alerts from './pages/Alerts.jsx';
 import Rooms from './pages/Rooms.jsx';
 import Trays from './pages/Trays.jsx';
 import Rentals from './pages/Rentals.jsx';
 import Packages from './pages/Packages.jsx';
 import Harvests from './pages/Harvests.jsx';
 import Deliveries from './pages/Deliveries.jsx';
+import Devices from './pages/Devices.jsx';
+import Settings from './pages/Settings.jsx';
 import Reports from './pages/Reports.jsx';
 import Users from './pages/Users.jsx';
 import Notifications from './pages/Notifications.jsx';
@@ -16,6 +20,8 @@ import Notifications from './pages/Notifications.jsx';
 const STAFF = ['admin', 'operator'];
 const MENU = [
   ['dash', 'Tổng quan', Dashboard, STAFF],
+  ['monitor', 'Giám sát & điều khiển', Monitor, STAFF],
+  ['alerts', 'Cảnh báo', Alerts, STAFF],
   ['notifications', 'Thông báo', Notifications, STAFF],
   ['rooms', 'Phòng nuôi', Rooms, STAFF],
   ['trays', 'Khay trồng', Trays, STAFF],
@@ -23,6 +29,8 @@ const MENU = [
   ['packages', 'Gói thuê & giá', Packages, STAFF],
   ['harvests', 'Thu hoạch', Harvests, STAFF],
   ['deliveries', 'Nhận / giao nấm', Deliveries, STAFF],
+  ['devices', 'Thiết bị & camera', Devices, STAFF],
+  ['settings', 'Ngưỡng & thông báo', Settings, STAFF],
   ['reports', 'Báo cáo', Reports, STAFF],
   ['users', 'Người dùng', Users, ['admin']],
 ];
