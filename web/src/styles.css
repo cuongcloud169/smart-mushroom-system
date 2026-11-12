@@ -1,0 +1,55 @@
+* { box-sizing: border-box; }
+body { margin: 0; font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; background: #f4f6f4; color: #1d2a22; }
+h2 { margin: 8px 0 12px; font-size: 22px; }
+h3 { margin: 20px 0 8px; font-size: 16px; }
+
+.layout { display: flex; min-height: 100vh; }
+nav { width: 230px; flex-shrink: 0; background: #1f3d2b; color: #fff; padding: 16px; }
+nav h3 { margin: 0 0 16px; }
+nav a { display: flex; justify-content: space-between; align-items: center; padding: 8px 10px; cursor: pointer; border-radius: 6px; }
+nav a.on, nav a:hover { background: #2f6b45; }
+nav small { display: block; margin: 8px 10px; opacity: .8; }
+nav .count { background: #e03131; border-radius: 10px; padding: 0 7px; font-size: 12px; }
+main { flex: 1; padding: 20px 28px; overflow: auto; }
+
+.row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 8px; }
+.row.between { justify-content: space-between; }
+.row.end { justify-content: flex-end; margin-top: 12px; }
+input, select, textarea, button { padding: 7px 10px; font: inherit; border: 1px solid #c8d3cb; border-radius: 6px; }
+textarea { min-height: 70px; }
+button { cursor: pointer; background: #2f6b45; color: #fff; border: 0; }
+button:disabled { opacity: .6; }
+button.ghost { background: #fff; color: #2f6b45; border: 1px solid #2f6b45; }
+button.danger { background: #fff; color: #c92a2a; border: 1px solid #c92a2a; }
+.muted { color: #7a8a80; }
+.link { color: #2f6b45; cursor: pointer; text-align: center; }
+
+.table-wrap { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; background: #fff; margin-top: 10px; }
+th, td { border-bottom: 1px solid #e3e8e4; padding: 8px 10px; text-align: left; vertical-align: top; font-size: 14px; }
+th { background: #e5ece6; }
+td.actions { white-space: nowrap; }
+td.actions button { margin-right: 6px; padding: 4px 8px; font-size: 13px; }
+
+.cards { display: flex; gap: 12px; flex-wrap: wrap; margin: 12px 0; }
+.card { background: #fff; padding: 14px 18px; border-radius: 10px; min-width: 170px; box-shadow: 0 1px 2px rgba(0,0,0,.06); }
+.card b { display: block; font-size: 24px; margin-top: 6px; }
+.chart { background: #fff; border-radius: 10px; padding: 12px; margin-bottom: 12px; }
+
+.badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 12px; background: #e9ecef; }
+.badge.active, .badge.on, .badge.done, .badge.paid, .badge.empty, .badge.harvested { background: #d3f9d8; color: #2b8a3e; }
+.badge.pending, .badge.planned, .badge.confirmed, .badge.delivering, .badge.ready_harvest { background: #fff3bf; color: #946800; }
+.badge.cancelled, .badge.off, .badge.inactive, .badge.failed, .badge.maintenance { background: #ffe3e3; color: #c92a2a; }
+.badge.rented, .badge.growing, .badge.completed, .badge.refunded { background: #d0ebff; color: #1864ab; }
+
+.tabs { display: flex; gap: 4px; margin-bottom: 10px; }
+.tabs a { padding: 6px 12px; border-radius: 6px; cursor: pointer; background: #e5ece6; }
+.tabs a.on { background: #2f6b45; color: #fff; }
+
+.modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,.35); display: flex; align-items: center; justify-content: center; z-index: 10; }
+.modal { background: #fff; padding: 20px; border-radius: 12px; width: min(520px, 92vw); max-height: 90vh; overflow: auto; display: flex; flex-direction: column; gap: 10px; }
+.modal h3 { margin: 0 0 4px; }
+.modal label { display: flex; flex-direction: column; gap: 4px; font-size: 14px; }
+label.check { flex-direction: row; align-items: center; gap: 6px; }
+
+.login { max-width: 340px; margin: 14vh auto; display: flex; flex-direction: column; gap: 10px; background: #fff; padding: 24px; border-radius: 12px; }
