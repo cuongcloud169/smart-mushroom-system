@@ -1,6 +1,7 @@
-// ===== FIRMWARE ESP32 - Bước 4: thêm cảm biến CO2 MH-Z19B =====
+// ===== FIRMWARE ESP32 - Bước 5: điều khiển relay theo lệnh từ server =====
 // DHT22: chân DATA -> GPIO 4
 // MH-Z19B (CO2, UART, nguồn 5V): TX cảm biến -> GPIO 16 (RX2), RX cảm biến -> GPIO 17 (TX2)
+// Relay: phun sương, quạt, đèn LED, sưởi (GPIO 25, 26, 27, 14). Server trả về danh sách lệnh sau mỗi lần gửi dữ liệu.
 // Thư viện: "DHT sensor library" (Adafruit), "Adafruit Unified Sensor", "ArduinoJson" (v7)
 // Mỗi 10 giây: đọc cảm biến, POST /api/iot/readings kèm header x-device-key (xác thực thiết bị).
 
@@ -17,6 +18,8 @@ const char* DEVICE_KEY = "DAN_API_KEY_CUA_ESP32";         // Web > Thiết bị 
 
 // ---------- CHÂN KẾT NỐI ----------
 #define DHT_PIN 4
+const int RELAY_MIST = 25, RELAY_FAN = 26, RELAY_LIGHT = 27, RELAY_HEATER = 14;
+const bool RELAY_ACTIVE_LOW = true;    // đa số module relay bật khi chân ở mức LOW; đổi false nếu ngược lại
 const bool HAS_CO2_SENSOR = true;      // đặt false nếu chưa lắp MH-Z19B
 
 // ---------- THỜI GIAN ----------
@@ -27,6 +30,34 @@ const int HTTP_RETRIES = 3;
 DHT dht(DHT_PIN, DHT22);
 HardwareSerial co2Serial(2);           // UART2 cho MH-Z19B
 unsigned long lastSend = 0;
+
+// ---------- RELAY ----------
+void relayWrite(int pin, bool on) {
+  digitalWrite(pin, (on ^ RELAY_ACTIVE_LOW) ? HIGH : LOW);
+}
+
+void allRelaysOff() {
+  int pins[] = {RELAY_MIST, RELAY_FAN, RELAY_LIGHT, RELAY_HEATER};
+  for (int p : pins) relayWrite(p, false);
+}
+
+// kind = mist | fan | light | heater
+void applyCommand(const char* kind, bool on) {
+  if (!kind) return;
+  if (!strcmp(kind, "mist"))        relayWrite(RELAY_MIST, on);
+  else if (!strcmp(kind, "fan"))    relayWrite(RELAY_FAN, on);
+  else if (!strcmp(kind, "light"))  relayWrite(RELAY_LIGHT, on);
+  else if (!strcmp(kind, "heater")) relayWrite(RELAY_HEATER, on);
+}
+
+// Đọc JSON {"commands":[{"kind":"mist","state":true}, ...]} và bật/tắt relay
+void applyCommands(const String& json) {
+  JsonDocument res;
+  if (deserializeJson(res, json)) return;
+  for (JsonObject c : res["commands"].as<JsonArray>()) {
+    applyCommand(c["kind"], c["state"] | false);
+  }
+}
 
 // ---------- CẢM BIẾN CO2 ----------
 // Đọc CO2 (ppm) từ MH-Z19B. Trả -1 nếu lỗi. Cảm biến cần làm nóng ~3 phút sau khi cấp nguồn.
@@ -88,8 +119,13 @@ void sendReading() {
     http.addHeader("x-device-key", DEVICE_KEY);
     int code = http.POST(body);
     Serial.printf("Gui %s -> HTTP %d (lan %d)\n", body.c_str(), code, attempt);
-    if (code == 201 || code == 400 || code == 401) {   // thành công, hoặc lỗi dữ liệu/API key: không gửi lại
-      if (code != 201) Serial.println(http.getString());
+    if (code == 201) {
+      applyCommands(http.getString());   // bật/tắt relay theo lệnh server trả về
+      http.end();
+      return;
+    }
+    if (code == 400 || code == 401) {   // dữ liệu sai hoặc sai API key: gửi lại cũng vô ích
+      Serial.println(http.getString());
       http.end();
       return;
     }
@@ -100,6 +136,9 @@ void sendReading() {
 
 void setup() {
   Serial.begin(115200);
+  int pins[] = {RELAY_MIST, RELAY_FAN, RELAY_LIGHT, RELAY_HEATER};
+  for (int p : pins) pinMode(p, OUTPUT);
+  allRelaysOff();                                   // mặc định tắt hết khi khởi động
   dht.begin();
   co2Serial.begin(9600, SERIAL_8N1, 16, 17);
   co2Serial.setTimeout(1000);
