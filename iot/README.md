@@ -54,3 +54,30 @@ const bool HAS_CO2_SENSOR = true;                     // false nếu chưa lắp
 - Mất Wi-Fi: tự kết nối lại, không treo chương trình.
 - Gửi lỗi: thử lại tối đa 3 lần.
 - Mất kết nối server quá **2 phút**: tự tắt hết relay để an toàn.
+
+## 5. Kiểm thử khi chưa có phần cứng
+
+Script `tools/simulate-esp32.mjs` giả lập ESP32, gửi nhiệt độ, độ ẩm, CO2 ngẫu nhiên lên server (cần Node.js 18+):
+
+```bash
+node tools/simulate-esp32.mjs <API_KEY> 5 http://localhost:8080
+```
+
+- Tham số 1: API key của thiết bị.
+- Tham số 2: số giây giữa các lần gửi (mặc định 5).
+- Tham số 3: địa chỉ backend (mặc định `http://localhost:8080`).
+
+## 6. Kịch bản kiểm tra
+
+| # | Thao tác | Kết quả mong đợi |
+|---|---|---|
+| 1 | Bật ESP32 / chạy script giả lập | Serial Monitor hoặc terminal báo gửi dữ liệu thành công |
+| 2 | Hà hơi / che DHT22 | Độ ẩm tăng, hiển thị trên trang giám sát |
+| 3 | Bấm bật quạt trên web | Relay kênh 2 đóng trong vòng 3 giây |
+| 4 | Độ ẩm thấp hơn ngưỡng | Server trả lệnh bật phun sương, relay kênh 1 đóng |
+| 5 | Tắt backend hơn 2 phút | ESP32 tự tắt toàn bộ relay |
+| 6 | Tắt rồi bật lại Wi-Fi | ESP32 tự kết nối lại, tiếp tục gửi dữ liệu |
+
+## 7. Lưu ý tích hợp
+
+Firmware gọi 2 API `POST /api/iot/readings` và `GET /api/iot/commands`, xác thực bằng header `x-device-key`. Backend cần có 2 API này (phần Backend IoT) thì ESP32 mới gửi được dữ liệu.
