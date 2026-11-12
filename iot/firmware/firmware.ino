@@ -1,9 +1,14 @@
-// ===== FIRMWARE ESP32 - Bước 5: điều khiển relay theo lệnh từ server =====
-// DHT22: chân DATA -> GPIO 4
-// MH-Z19B (CO2, UART, nguồn 5V): TX cảm biến -> GPIO 16 (RX2), RX cảm biến -> GPIO 17 (TX2)
-// Relay: phun sương, quạt, đèn LED, sưởi (GPIO 25, 26, 27, 14). Server trả về danh sách lệnh sau mỗi lần gửi dữ liệu.
-// Thư viện: "DHT sensor library" (Adafruit), "Adafruit Unified Sensor", "ArduinoJson" (v7)
-// Mỗi 10 giây: đọc cảm biến, POST /api/iot/readings kèm header x-device-key (xác thực thiết bị).
+// ===== FIRMWARE ESP32: đọc cảm biến -> gửi lên server -> nhận lệnh bật/tắt thiết bị =====
+// Cảm biến (đề yêu cầu nhiệt độ, độ ẩm và CO2):
+//   - DHT22  (nhiệt độ + độ ẩm)   : chân DATA -> GPIO 4
+//   - MH-Z19B (CO2, UART, nguồn 5V): TX cảm biến -> GPIO 16 (RX2), RX cảm biến -> GPIO 17 (TX2)
+// Thiết bị điều khiển qua module relay: phun sương, quạt, đèn LED, sưởi (GPIO 25, 26, 27, 14)
+// Thư viện (Arduino IDE > Library Manager): "DHT sensor library" (Adafruit), "Adafruit Unified Sensor", "ArduinoJson" (v7)
+//
+// Luồng hoạt động:
+//   - Mỗi 10 giây: đọc cảm biến, POST /api/iot/readings (header x-device-key), áp dụng lệnh server trả về.
+//   - Mỗi 3 giây : GET /api/iot/commands để lệnh bật/tắt tay từ web đến nhanh.
+//   - Mất Wi-Fi  : tự kết nối lại (không treo), relay giữ trạng thái an toàn (tắt) nếu mất server quá lâu.
 
 #include <WiFi.h>
 #include <HTTPClient.h>
@@ -24,12 +29,14 @@ const bool HAS_CO2_SENSOR = true;      // đặt false nếu chưa lắp MH-Z19B
 
 // ---------- THỜI GIAN ----------
 const unsigned long SEND_EVERY_MS    = 10000;   // gửi dữ liệu mỗi 10 giây
+const unsigned long POLL_EVERY_MS    = 3000;    // hỏi lệnh mỗi 3 giây
 const unsigned long WIFI_TIMEOUT_MS  = 15000;   // chờ Wi-Fi tối đa 15 giây mỗi lần thử
+const unsigned long FAILSAFE_MS      = 120000;  // mất server 2 phút -> tắt hết relay
 const int HTTP_RETRIES = 3;
 
 DHT dht(DHT_PIN, DHT22);
 HardwareSerial co2Serial(2);           // UART2 cho MH-Z19B
-unsigned long lastSend = 0;
+unsigned long lastSend = 0, lastPoll = 0, lastServerOk = 0;
 
 // ---------- RELAY ----------
 void relayWrite(int pin, bool on) {
@@ -57,6 +64,7 @@ void applyCommands(const String& json) {
   for (JsonObject c : res["commands"].as<JsonArray>()) {
     applyCommand(c["kind"], c["state"] | false);
   }
+  lastServerOk = millis();
 }
 
 // ---------- CẢM BIẾN CO2 ----------
@@ -75,6 +83,7 @@ int readCO2() {
 }
 
 // ---------- WI-FI ----------
+// Thử kết nối trong WIFI_TIMEOUT_MS, không chặn mãi; loop() sẽ thử lại lần sau
 bool ensureWifi() {
   if (WiFi.status() == WL_CONNECTED) return true;
   Serial.print("Dang ket noi WiFi");
@@ -110,7 +119,6 @@ void sendReading() {
   String body;
   serializeJson(doc, body);
 
-  // Gửi lại tối đa 3 lần nếu lỗi mạng / server
   for (int attempt = 1; attempt <= HTTP_RETRIES; attempt++) {
     HTTPClient http;
     http.setTimeout(5000);
@@ -120,7 +128,7 @@ void sendReading() {
     int code = http.POST(body);
     Serial.printf("Gui %s -> HTTP %d (lan %d)\n", body.c_str(), code, attempt);
     if (code == 201) {
-      applyCommands(http.getString());   // bật/tắt relay theo lệnh server trả về
+      applyCommands(http.getString());
       http.end();
       return;
     }
@@ -134,6 +142,17 @@ void sendReading() {
   }
 }
 
+// ---------- HỎI LỆNH ----------
+void pollCommands() {
+  HTTPClient http;
+  http.setTimeout(3000);
+  http.begin(String(SERVER) + "/api/iot/commands");
+  http.addHeader("x-device-key", DEVICE_KEY);
+  int code = http.GET();
+  if (code == 200) applyCommands(http.getString());
+  http.end();
+}
+
 void setup() {
   Serial.begin(115200);
   int pins[] = {RELAY_MIST, RELAY_FAN, RELAY_LIGHT, RELAY_HEATER};
@@ -144,15 +163,26 @@ void setup() {
   co2Serial.setTimeout(1000);
   WiFi.mode(WIFI_STA);
   ensureWifi();
+  lastServerOk = millis();
 }
 
 void loop() {
   if (!ensureWifi()) {
     delay(2000);
-    return;
+  } else {
+    unsigned long now = millis();
+    if (now - lastSend >= SEND_EVERY_MS) {
+      lastSend = now;
+      sendReading();
+    } else if (now - lastPoll >= POLL_EVERY_MS) {
+      lastPoll = now;
+      pollCommands();
+    }
   }
-  if (millis() - lastSend >= SEND_EVERY_MS) {
-    lastSend = millis();
-    sendReading();
+  // An toàn: mất liên lạc server quá lâu thì tắt hết thiết bị
+  if (millis() - lastServerOk > FAILSAFE_MS) {
+    allRelaysOff();
+    lastServerOk = millis();
+    Serial.println("Mat ket noi server qua lau -> tat het relay");
   }
 }
