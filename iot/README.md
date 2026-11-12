@@ -27,3 +27,30 @@ Thư mục này chứa firmware cho ESP32: đo nhiệt độ, độ ẩm, CO2 tr
 - Tất cả GND nối chung.
 - Relay kích mức thấp (LOW = bật). Nếu module của bạn ngược lại, đổi `RELAY_ACTIVE_LOW = false` trong firmware.
 - Vặn LM2596 ra đúng 5V trước khi nối vào ESP32.
+
+## 3. Nạp firmware
+
+1. Cài **Arduino IDE**, thêm board ESP32: *File > Preferences > Additional Boards Manager URLs* nhập `https://espressif.github.io/arduino-esp32/package_esp32_index.json`, rồi cài **esp32** trong *Boards Manager*.
+2. Cài thư viện **DHT sensor library** (Adafruit) trong *Library Manager*.
+3. Mở `iot/firmware/firmware.ino`, sửa phần cấu hình:
+
+```cpp
+const char* WIFI_SSID  = "TEN_WIFI";                 // chỉ hỗ trợ Wi-Fi 2.4 GHz
+const char* WIFI_PASS  = "MAT_KHAU_WIFI";
+const char* SERVER     = "http://192.168.1.10:8080"; // IP LAN của máy chạy backend, không dùng localhost
+const char* DEVICE_KEY = "DAN_API_KEY_CUA_ESP32";    // API key của thiết bị trên web
+const bool HAS_CO2_SENSOR = true;                     // false nếu chưa lắp cảm biến CO2
+```
+
+4. Chọn board **ESP32 Dev Module**, chọn cổng COM, bấm **Upload**.
+5. Mở *Serial Monitor* (115200 baud) để xem ESP32 kết nối Wi-Fi và gửi dữ liệu.
+
+> Không commit mật khẩu Wi-Fi thật lên GitHub: chỉ sửa trên máy khi nạp.
+
+## 4. Cách hoạt động
+
+- Mỗi **10 giây**: đọc cảm biến, gửi `POST /api/iot/readings` (header `x-device-key`), áp dụng lệnh server trả về.
+- Mỗi **3 giây**: gọi `GET /api/iot/commands` để nhận lệnh bật/tắt tay từ web.
+- Mất Wi-Fi: tự kết nối lại, không treo chương trình.
+- Gửi lỗi: thử lại tối đa 3 lần.
+- Mất kết nối server quá **2 phút**: tự tắt hết relay để an toàn.
