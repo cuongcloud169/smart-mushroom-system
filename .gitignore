@@ -32,3 +32,11 @@ build/
 ### VS Code ###
 .vscode/
 build-error.txt
+
+### Backend, Web, App ###
+backend/target/
+web/node_modules/
+web/dist/
+app/build/
+app/.dart_tool/
+.env
