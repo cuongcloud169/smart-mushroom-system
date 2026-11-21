@@ -1,0 +1,37 @@
+server:
+  port: ${PORT:8080}
+
+spring:
+  application:
+    name: mushroom-backend
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/mushroom}
+    username: ${DB_USER:mushroom}
+    password: ${DB_PASSWORD:mushroom}
+  jpa:
+    hibernate:
+      ddl-auto: none          # bảng do Flyway tạo, Hibernate không tự sửa
+    open-in-view: false
+  flyway:
+    enabled: true             # chạy db/migration/V*.sql khi khởi động
+  jackson:
+    property-naming-strategy: SNAKE_CASE      # JSON dạng full_name, room_id... (khớp web/app)
+    serialization:
+      write-dates-as-timestamps: false        # ngày giờ dạng ISO 8601
+    time-zone: Asia/Ho_Chi_Minh
+
+app:
+  jwt:
+    # BẮT BUỘC đổi khi triển khai thật (đặt biến môi trường JWT_SECRET, tối thiểu 32 ký tự)
+    secret: ${JWT_SECRET:dev-only-secret-change-me-0123456789abcdef}
+    expiration-hours: ${JWT_EXPIRATION_HOURS:168}
+  # Mã mời để tạo tài khoản Administrator qua POST /api/auth/register-admin
+  admin-invite-code: ${ADMIN_INVITE_CODE:MUSHROOM-ADMIN-2026}
+  # Các địa chỉ web được phép gọi API (phân cách bằng dấu phẩy)
+  cors-allowed-origins: ${CORS_ORIGINS:http://localhost:5173,http://localhost:3000}
+  # Tạo dữ liệu mẫu khi CSDL còn trống
+  seed-demo-data: ${SEED_DEMO_DATA:true}
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
