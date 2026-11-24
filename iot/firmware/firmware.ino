@@ -25,7 +25,7 @@ const char* DEVICE_KEY = "DAN_API_KEY_CUA_ESP32";         // Web > Thiết bị 
 // ---------- CHÂN KẾT NỐI ----------
 #define DHT_PIN 33                      // D33
 const int RELAY_MIST = 14, RELAY_FAN = 27, RELAY_LIGHT = 26, RELAY_HEATER = 25;
-const bool RELAY_ACTIVE_LOW = true;    // đa số module relay bật khi chân ở mức LOW; đổi false nếu ngược lại
+const bool RELAY_ACTIVE_LOW = false;   // module đang dùng bật khi chân ở mức HIGH; đổi true nếu thiết bị chạy ngược
 const bool LED_DIRECT = false;         // true nếu LED đèn/sưởi cắm THẲNG vào GPIO 26/25 (không qua relay)
 const bool HAS_CO2_SENSOR = true;      // đặt false nếu chưa lắp MQ-135
 #define MQ_PIN 32                      // D32 (ADC1). Không dùng chân ADC2 vì bị Wi-Fi chiếm
