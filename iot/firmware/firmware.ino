@@ -1,13 +1,13 @@
 // ===== FIRMWARE ESP32: đọc cảm biến -> gửi lên server -> nhận lệnh bật/tắt thiết bị =====
 // Cảm biến (đề yêu cầu nhiệt độ, độ ẩm và CO2):
 //   - DHT22  (nhiệt độ + độ ẩm)   : chân DATA -> GPIO 4
-//   - MH-Z19B (CO2, UART, nguồn 5V): TX cảm biến -> GPIO 16 (RX2), RX cảm biến -> GPIO 17 (TX2)
-// Thiết bị điều khiển qua module relay: phun sương, quạt, đèn LED, sưởi (GPIO 25, 26, 27, 14)
+//   - MQ-135 (khí / CO2 ước lượng, nguồn 5V): AO -> cầu chia áp 2 điện trở bằng nhau -> GPIO 34, DO để trống
+// Thiết bị điều khiển qua module relay: phun sương GPIO 14, quạt GPIO 27, đèn LED GPIO 26, sưởi GPIO 25
 // Thư viện (Arduino IDE > Library Manager): "DHT sensor library" (Adafruit), "Adafruit Unified Sensor", "ArduinoJson" (v7)
 //
 // Luồng hoạt động:
-//   - Mỗi 10 giây: đọc cảm biến, POST /api/iot/readings (header x-device-key), áp dụng lệnh server trả về.
-//   - Mỗi 3 giây : GET /api/iot/commands để lệnh bật/tắt tay từ web đến nhanh.
+//   - Mỗi 2 giây : đọc cảm biến, POST /api/iot/readings (header x-device-key), áp dụng lệnh server trả về.
+//   - Mỗi 1 giây : GET /api/iot/commands để lệnh bật/tắt tay từ web đến nhanh.
 //   - Mất Wi-Fi  : tự kết nối lại (không treo), relay giữ trạng thái an toàn (tắt) nếu mất server quá lâu.
 
 #include <WiFi.h>
@@ -23,24 +23,32 @@ const char* DEVICE_KEY = "DAN_API_KEY_CUA_ESP32";         // Web > Thiết bị 
 
 // ---------- CHÂN KẾT NỐI ----------
 #define DHT_PIN 4
-const int RELAY_MIST = 25, RELAY_FAN = 26, RELAY_LIGHT = 27, RELAY_HEATER = 14;
+const int RELAY_MIST = 14, RELAY_FAN = 27, RELAY_LIGHT = 26, RELAY_HEATER = 25;
 const bool RELAY_ACTIVE_LOW = true;    // đa số module relay bật khi chân ở mức LOW; đổi false nếu ngược lại
-const bool HAS_CO2_SENSOR = true;      // đặt false nếu chưa lắp MH-Z19B
+const bool LED_DIRECT = false;         // true nếu LED đèn/sưởi cắm THẲNG vào GPIO 26/25 (không qua relay)
+const bool HAS_CO2_SENSOR = true;      // đặt false nếu chưa lắp MQ-135
+#define MQ_PIN 34                      // chân analog ADC1, vẫn đọc được khi bật Wi-Fi
+
+// ---------- QUY ĐỔI MQ-135 ----------
+// MQ-135 đo chung nhiều loại khí, giá trị chỉ là ƯỚC LƯỢNG: quy đổi tuyến tính ADC 0..4095 -> 400..5000 ppm
+const int MQ_RAW_MIN = 50;             // dưới mức này coi như chưa cắm dây AO
+const int CO2_MIN_PPM = 400, CO2_MAX_PPM = 5000;
 
 // ---------- THỜI GIAN ----------
-const unsigned long SEND_EVERY_MS    = 10000;   // gửi dữ liệu mỗi 10 giây
-const unsigned long POLL_EVERY_MS    = 3000;    // hỏi lệnh mỗi 3 giây
+const unsigned long SEND_EVERY_MS    = 2000;    // gửi dữ liệu mỗi 2 giây (DHT22 cần tối thiểu 2 giây)
+const unsigned long POLL_EVERY_MS    = 1000;    // hỏi lệnh mỗi 1 giây
 const unsigned long WIFI_TIMEOUT_MS  = 15000;   // chờ Wi-Fi tối đa 15 giây mỗi lần thử
 const unsigned long FAILSAFE_MS      = 120000;  // mất server 2 phút -> tắt hết relay
 const int HTTP_RETRIES = 3;
 
 DHT dht(DHT_PIN, DHT22);
-HardwareSerial co2Serial(2);           // UART2 cho MH-Z19B
 unsigned long lastSend = 0, lastPoll = 0, lastServerOk = 0;
 
 // ---------- RELAY ----------
 void relayWrite(int pin, bool on) {
-  digitalWrite(pin, (on ^ RELAY_ACTIVE_LOW) ? HIGH : LOW);
+  bool activeLow = RELAY_ACTIVE_LOW;
+  if (LED_DIRECT && (pin == RELAY_LIGHT || pin == RELAY_HEATER)) activeLow = false;  // LED nối GPIO -> LED -> GND: HIGH = sáng
+  digitalWrite(pin, (on ^ activeLow) ? HIGH : LOW);
 }
 
 void allRelaysOff() {
@@ -55,31 +63,40 @@ void applyCommand(const char* kind, bool on) {
   else if (!strcmp(kind, "fan"))    relayWrite(RELAY_FAN, on);
   else if (!strcmp(kind, "light"))  relayWrite(RELAY_LIGHT, on);
   else if (!strcmp(kind, "heater")) relayWrite(RELAY_HEATER, on);
+  Serial.printf("  Lenh: %s -> %s\n", kind, on ? "BAT" : "TAT");
 }
 
-// Đọc JSON {"commands":[{"kind":"mist","state":true}, ...]} và bật/tắt relay
+// true: đèn và sưởi chỉ BẬT khi có lệnh bật tay (mode = "manual"); lệnh tự động bị bỏ qua -> giữ tắt
+// false: đèn và sưởi chạy theo cả lệnh tự động lẫn lệnh tay
+const bool LIGHT_HEATER_MANUAL_ONLY = false;
+
+// Đọc JSON {"commands":[{"kind":"mist","state":true,"mode":"auto"}, ...]} và bật/tắt relay
 void applyCommands(const String& json) {
   JsonDocument res;
   if (deserializeJson(res, json)) return;
   for (JsonObject c : res["commands"].as<JsonArray>()) {
-    applyCommand(c["kind"], c["state"] | false);
+    const char* kind = c["kind"];
+    bool on = c["state"] | false;
+    const char* mode = c["mode"] | "auto";
+    if (LIGHT_HEATER_MANUAL_ONLY && kind &&
+        (!strcmp(kind, "light") || !strcmp(kind, "heater")) && strcmp(mode, "manual") != 0) {
+      on = false;
+    }
+    applyCommand(kind, on);
   }
   lastServerOk = millis();
 }
 
-// ---------- CẢM BIẾN CO2 ----------
-// Đọc CO2 (ppm) từ MH-Z19B. Trả -1 nếu lỗi. Cảm biến cần làm nóng ~3 phút sau khi cấp nguồn.
+// ---------- CẢM BIẾN KHÍ MQ-135 ----------
+// Lấy trung bình 10 lần đọc ở chân analog, trả ppm ước lượng hoặc -1 nếu lỗi.
+// Cảm biến cần làm nóng 1-3 phút sau khi cấp nguồn thì số đo mới ổn định.
 int readCO2() {
   if (!HAS_CO2_SENSOR) return -1;
-  const byte cmd[9] = {0xFF, 0x01, 0x86, 0x00, 0x00, 0x00, 0x00, 0x00, 0x79};
-  byte res[9];
-  while (co2Serial.available()) co2Serial.read();   // xóa dữ liệu cũ
-  co2Serial.write(cmd, 9);
-  if (co2Serial.readBytes(res, 9) != 9 || res[0] != 0xFF || res[1] != 0x86) return -1;
-  byte sum = 0;
-  for (int i = 1; i < 8; i++) sum += res[i];
-  if ((byte)(0xFF - sum + 1) != res[8]) return -1;   // sai checksum
-  return res[2] * 256 + res[3];
+  long sum = 0;
+  for (int i = 0; i < 10; i++) { sum += analogRead(MQ_PIN); delay(5); }
+  int raw = sum / 10;                           // 0..4095
+  if (raw < MQ_RAW_MIN) return -1;
+  return map(raw, 0, 4095, CO2_MIN_PPM, CO2_MAX_PPM);
 }
 
 // ---------- WI-FI ----------
@@ -159,8 +176,8 @@ void setup() {
   for (int p : pins) pinMode(p, OUTPUT);
   allRelaysOff();                                   // mặc định tắt hết khi khởi động
   dht.begin();
-  co2Serial.begin(9600, SERIAL_8N1, 16, 17);
-  co2Serial.setTimeout(1000);
+  analogReadResolution(12);                         // ADC 0..4095
+  analogSetPinAttenuation(MQ_PIN, ADC_11db);        // đo được tới ~3.1V
   WiFi.mode(WIFI_STA);
   ensureWifi();
   lastServerOk = millis();
