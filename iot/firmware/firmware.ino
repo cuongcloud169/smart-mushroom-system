@@ -96,7 +96,10 @@ int readCO2() {
   long sum = 0;
   for (int i = 0; i < 10; i++) { sum += analogRead(MQ_PIN); delay(5); }
   int raw = sum / 10;                           // 0..4095
-  if (raw < MQ_RAW_MIN) return -1;
+  if (raw < MQ_RAW_MIN) {
+    Serial.printf("MQ-135 doc raw=%d (gan 0V) -> kiem tra day AO, cau chia ap, chan D32\n", raw);
+    return -1;
+  }
   return map(raw, 0, 4095, CO2_MIN_PPM, CO2_MAX_PPM);
 }
 
@@ -126,8 +129,8 @@ void sendReading() {
   float h = dht.readHumidity();
   int co2 = readCO2();
   if (isnan(t) || isnan(h)) {
-    Serial.println("Loi doc DHT22 (kiem tra day DATA)");
-    if (co2 < 0) return;     // không có số đo nào hợp lệ
+    Serial.println("Loi doc DHT22 (kiem tra day DAT -> D33, VCC -> 3V3, GND)");
+    if (co2 < 0) { Serial.println("Khong co so do hop le -> bo qua lan gui nay"); return; }
   }
 
   JsonDocument doc;
