@@ -59,3 +59,23 @@ Máy ảo Android: chỉ cần `flutter run`, app mặc định trỏ tới `10.
   `New-NetFirewallRule -DisplayName "Mushroom 8080" -Direction Inbound -Protocol TCP -LocalPort 8080 -Action Allow -Profile Any`
 - IP laptop đổi (đổi mạng Wi-Fi) thì phải build lại APK với IP mới.
 - Đăng nhập bằng tài khoản **khách hàng** (đăng ký trong app). Đơn thuê khay được duyệt trên web quản trị → **Cho thuê** → **Duyệt**.
+
+## 6. Camera trên app
+
+Trang chi tiết khay hiển thị camera theo **Đường dẫn camera** của thiết bị loại Camera (web → Thiết bị IoT & camera → Sửa):
+
+| Đường dẫn | App hiển thị |
+|---|---|
+| Kết thúc bằng `.jpg` / `.jpeg` / `.png` | Ảnh tĩnh, tải lại mỗi 2 giây |
+| Có `mjpg` / `mjpeg`, hoặc đường dẫn khác | Video MJPEG liên tục (`lib/mjpeg_view.dart`, dùng thư viện `http` có sẵn) |
+
+Dùng điện thoại làm camera:
+
+- **Android – IP Webcam**: Start server → dùng `http://<IP điện thoại>:8080/shot.jpg` (ảnh) hoặc `/video` (video).
+- **iPhone – SimpleIPCamera** (iOS 18.4+): chỉ phát MJPEG, dùng đúng địa chỉ app hiển thị (ví dụ `http://<IP>:8080/stream.mjpg`). Phải để app mở, tắt tự khóa màn hình.
+
+Lưu ý:
+
+- Camera **gắn với một khay** thì chỉ khay đó thấy; để trống ô *Gắn với khay* thì mọi khay trong phòng đều thấy.
+- App chỉ tải thông tin camera khi mở trang khay: sửa trên web xong thì thoát ra vào lại hoặc kéo xuống để tải lại.
+- **Laptop (backend), điện thoại làm camera, điện thoại khách hàng và ESP32 phải cùng một mạng Wi-Fi.** Đổi mạng thì IP đổi: sửa lại đường dẫn camera, build lại APK, sửa `SERVER` trong firmware.
