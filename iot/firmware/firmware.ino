@@ -2,7 +2,7 @@
 // Cảm biến (đề yêu cầu nhiệt độ, độ ẩm và CO2):
 //   - DHT22  (nhiệt độ + độ ẩm)   : chân DATA -> GPIO 4
 //   - MQ-135 (khí / CO2 ước lượng, nguồn 5V): AO -> cầu chia áp 2 điện trở bằng nhau -> GPIO 34, DO để trống
-// Thiết bị điều khiển qua module relay: phun sương, quạt, đèn LED, sưởi (GPIO 25, 26, 27, 14)
+// Thiết bị điều khiển qua module relay: phun sương GPIO 14, quạt GPIO 27, đèn LED GPIO 26, sưởi GPIO 25
 // Thư viện (Arduino IDE > Library Manager): "DHT sensor library" (Adafruit), "Adafruit Unified Sensor", "ArduinoJson" (v7)
 //
 // Luồng hoạt động:
@@ -23,7 +23,7 @@ const char* DEVICE_KEY = "DAN_API_KEY_CUA_ESP32";         // Web > Thiết bị 
 
 // ---------- CHÂN KẾT NỐI ----------
 #define DHT_PIN 4
-const int RELAY_MIST = 25, RELAY_FAN = 26, RELAY_LIGHT = 27, RELAY_HEATER = 14;
+const int RELAY_MIST = 14, RELAY_FAN = 27, RELAY_LIGHT = 26, RELAY_HEATER = 25;
 const bool RELAY_ACTIVE_LOW = true;    // đa số module relay bật khi chân ở mức LOW; đổi false nếu ngược lại
 const bool HAS_CO2_SENSOR = true;      // đặt false nếu chưa lắp MQ-135
 #define MQ_PIN 34                      // chân analog ADC1, vẫn đọc được khi bật Wi-Fi
