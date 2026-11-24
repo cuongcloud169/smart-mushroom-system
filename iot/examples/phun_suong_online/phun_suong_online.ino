@@ -2,7 +2,7 @@
 // Tách từ firmware đầy đủ: giữ DHT22 (độ ẩm quyết định phun sương tự động),
 // bỏ cảm biến khí và các relay quạt / đèn / sưởi.
 // Đấu dây:
-//   DHT22 : DAT -> D4, VCC -> 3V3, GND -> GND
+//   DHT22 : DAT -> D33, VCC -> 3V3, GND -> GND
 //   Relay : IN (phun sương) -> D14, VCC -> 5V, GND -> GND
 // Thư viện: "DHT sensor library" (Adafruit), "Adafruit Unified Sensor", "ArduinoJson" (v7)
 
@@ -18,9 +18,9 @@ const char* SERVER     = "http://192.168.1.10:8080";      // IP LAN máy chạy 
 const char* DEVICE_KEY = "DAN_API_KEY_CUA_ESP32";         // Web > Thiết bị & camera > API key
 
 // ---------- CHÂN ----------
-#define DHT_PIN 4
+#define DHT_PIN 33
 const int RELAY_MIST = 14;            // relay phun sương
-const bool RELAY_ACTIVE_LOW = true;
+const bool RELAY_ACTIVE_LOW = false;  // module đang dùng: HIGH = bật
 
 // ---------- THỜI GIAN ----------
 const unsigned long SEND_EVERY_MS   = 10000;   // gửi độ ẩm mỗi 10 giây

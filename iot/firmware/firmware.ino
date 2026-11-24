@@ -1,7 +1,8 @@
 // ===== FIRMWARE ESP32: đọc cảm biến -> gửi lên server -> nhận lệnh bật/tắt thiết bị =====
 // Cảm biến (đề yêu cầu nhiệt độ, độ ẩm và CO2):
-//   - DHT22  (nhiệt độ + độ ẩm)   : chân DATA -> GPIO 4
-//   - MQ-135 (khí / CO2 ước lượng, nguồn 5V): AO -> cầu chia áp 2 điện trở bằng nhau -> GPIO 34, DO để trống
+//   - DHT22  (nhiệt độ + độ ẩm)   : chân DATA -> GPIO 33
+//   - MQ-135 (khí / CO2 ước lượng, nguồn 5V): AO -> cầu chia áp 2 điện trở bằng nhau -> GPIO 32, DO để trống
+//   Analog chỉ đọc được trên ADC1 (GPIO 32-36, 39) khi bật Wi-Fi; ADC2 (0, 2, 4, 12-15, 25-27) bị Wi-Fi chiếm
 // Thiết bị điều khiển qua module relay: phun sương GPIO 14, quạt GPIO 27, đèn LED GPIO 26, sưởi GPIO 25
 // Thư viện (Arduino IDE > Library Manager): "DHT sensor library" (Adafruit), "Adafruit Unified Sensor", "ArduinoJson" (v7)
 //
@@ -22,12 +23,12 @@ const char* SERVER     = "http://192.168.1.10:8080";      // IP LAN của máy c
 const char* DEVICE_KEY = "DAN_API_KEY_CUA_ESP32";         // Web > Thiết bị & camera > API key
 
 // ---------- CHÂN KẾT NỐI ----------
-#define DHT_PIN 4
+#define DHT_PIN 33                      // D33
 const int RELAY_MIST = 14, RELAY_FAN = 27, RELAY_LIGHT = 26, RELAY_HEATER = 25;
-const bool RELAY_ACTIVE_LOW = true;    // đa số module relay bật khi chân ở mức LOW; đổi false nếu ngược lại
+const bool RELAY_ACTIVE_LOW = false;   // module đang dùng bật khi chân ở mức HIGH; đổi true nếu thiết bị chạy ngược
 const bool LED_DIRECT = false;         // true nếu LED đèn/sưởi cắm THẲNG vào GPIO 26/25 (không qua relay)
 const bool HAS_CO2_SENSOR = true;      // đặt false nếu chưa lắp MQ-135
-#define MQ_PIN 34                      // chân analog ADC1, vẫn đọc được khi bật Wi-Fi
+#define MQ_PIN 32                      // D32 (ADC1). Không dùng chân ADC2 vì bị Wi-Fi chiếm
 
 // ---------- QUY ĐỔI MQ-135 ----------
 // MQ-135 đo chung nhiều loại khí, giá trị chỉ là ƯỚC LƯỢNG: quy đổi tuyến tính ADC 0..4095 -> 400..5000 ppm
@@ -95,7 +96,10 @@ int readCO2() {
   long sum = 0;
   for (int i = 0; i < 10; i++) { sum += analogRead(MQ_PIN); delay(5); }
   int raw = sum / 10;                           // 0..4095
-  if (raw < MQ_RAW_MIN) return -1;
+  if (raw < MQ_RAW_MIN) {
+    Serial.printf("MQ-135 doc raw=%d (gan 0V) -> kiem tra day AO, cau chia ap, chan D32\n", raw);
+    return -1;
+  }
   return map(raw, 0, 4095, CO2_MIN_PPM, CO2_MAX_PPM);
 }
 
@@ -123,10 +127,12 @@ bool ensureWifi() {
 void sendReading() {
   float t = dht.readTemperature();
   float h = dht.readHumidity();
+  // DHT22 hở dây thường trả 0°C và 0% (vẫn đúng checksum) -> coi như lỗi, không gửi
+  if ((t == 0 && h == 0) || t < -10 || t > 60 || h <= 0 || h > 100) { t = NAN; h = NAN; }
   int co2 = readCO2();
   if (isnan(t) || isnan(h)) {
-    Serial.println("Loi doc DHT22 (kiem tra day DATA)");
-    if (co2 < 0) return;     // không có số đo nào hợp lệ
+    Serial.println("Loi doc DHT22 (kiem tra day DAT -> D33, VCC -> 3V3, GND)");
+    if (co2 < 0) { Serial.println("Khong co so do hop le -> bo qua lan gui nay"); return; }
   }
 
   JsonDocument doc;

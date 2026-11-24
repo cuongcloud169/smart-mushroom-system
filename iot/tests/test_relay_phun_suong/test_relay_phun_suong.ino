@@ -6,7 +6,7 @@
 //   a  -> chế độ tự động: bật 5 giây, tắt 5 giây (gõ lại 'a' để dừng)
 
 const int RELAY_MIST = 14;            // relay phun sương
-const bool RELAY_ACTIVE_LOW = true;   // relay SONGLE xanh: LOW = bật
+const bool RELAY_ACTIVE_LOW = false;  // module đang dùng: HIGH = bật
 
 bool mistOn = false;
 bool autoMode = false;
