@@ -25,6 +25,7 @@ const char* DEVICE_KEY = "DAN_API_KEY_CUA_ESP32";         // Web > Thiết bị 
 #define DHT_PIN 4
 const int RELAY_MIST = 14, RELAY_FAN = 27, RELAY_LIGHT = 26, RELAY_HEATER = 25;
 const bool RELAY_ACTIVE_LOW = true;    // đa số module relay bật khi chân ở mức LOW; đổi false nếu ngược lại
+const bool LED_DIRECT = false;         // true nếu LED đèn/sưởi cắm THẲNG vào GPIO 26/25 (không qua relay)
 const bool HAS_CO2_SENSOR = true;      // đặt false nếu chưa lắp MQ-135
 #define MQ_PIN 34                      // chân analog ADC1, vẫn đọc được khi bật Wi-Fi
 
@@ -45,7 +46,9 @@ unsigned long lastSend = 0, lastPoll = 0, lastServerOk = 0;
 
 // ---------- RELAY ----------
 void relayWrite(int pin, bool on) {
-  digitalWrite(pin, (on ^ RELAY_ACTIVE_LOW) ? HIGH : LOW);
+  bool activeLow = RELAY_ACTIVE_LOW;
+  if (LED_DIRECT && (pin == RELAY_LIGHT || pin == RELAY_HEATER)) activeLow = false;  // LED nối GPIO -> LED -> GND: HIGH = sáng
+  digitalWrite(pin, (on ^ activeLow) ? HIGH : LOW);
 }
 
 void allRelaysOff() {
@@ -60,6 +63,7 @@ void applyCommand(const char* kind, bool on) {
   else if (!strcmp(kind, "fan"))    relayWrite(RELAY_FAN, on);
   else if (!strcmp(kind, "light"))  relayWrite(RELAY_LIGHT, on);
   else if (!strcmp(kind, "heater")) relayWrite(RELAY_HEATER, on);
+  Serial.printf("  Lenh: %s -> %s\n", kind, on ? "BAT" : "TAT");
 }
 
 // Đọc JSON {"commands":[{"kind":"mist","state":true}, ...]} và bật/tắt relay
