@@ -6,8 +6,8 @@
 // Thư viện (Arduino IDE > Library Manager): "DHT sensor library" (Adafruit), "Adafruit Unified Sensor", "ArduinoJson" (v7)
 //
 // Luồng hoạt động:
-//   - Mỗi 10 giây: đọc cảm biến, POST /api/iot/readings (header x-device-key), áp dụng lệnh server trả về.
-//   - Mỗi 3 giây : GET /api/iot/commands để lệnh bật/tắt tay từ web đến nhanh.
+//   - Mỗi 2 giây : đọc cảm biến, POST /api/iot/readings (header x-device-key), áp dụng lệnh server trả về.
+//   - Mỗi 1 giây : GET /api/iot/commands để lệnh bật/tắt tay từ web đến nhanh.
 //   - Mất Wi-Fi  : tự kết nối lại (không treo), relay giữ trạng thái an toàn (tắt) nếu mất server quá lâu.
 
 #include <WiFi.h>
@@ -34,8 +34,8 @@ const int MQ_RAW_MIN = 50;             // dưới mức này coi như chưa cắ
 const int CO2_MIN_PPM = 400, CO2_MAX_PPM = 5000;
 
 // ---------- THỜI GIAN ----------
-const unsigned long SEND_EVERY_MS    = 10000;   // gửi dữ liệu mỗi 10 giây
-const unsigned long POLL_EVERY_MS    = 3000;    // hỏi lệnh mỗi 3 giây
+const unsigned long SEND_EVERY_MS    = 2000;    // gửi dữ liệu mỗi 2 giây (DHT22 cần tối thiểu 2 giây)
+const unsigned long POLL_EVERY_MS    = 1000;    // hỏi lệnh mỗi 1 giây
 const unsigned long WIFI_TIMEOUT_MS  = 15000;   // chờ Wi-Fi tối đa 15 giây mỗi lần thử
 const unsigned long FAILSAFE_MS      = 120000;  // mất server 2 phút -> tắt hết relay
 const int HTTP_RETRIES = 3;
