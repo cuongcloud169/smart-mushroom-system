@@ -1,7 +1,8 @@
 // ===== FIRMWARE ESP32: đọc cảm biến -> gửi lên server -> nhận lệnh bật/tắt thiết bị =====
 // Cảm biến (đề yêu cầu nhiệt độ, độ ẩm và CO2):
-//   - DHT22  (nhiệt độ + độ ẩm)   : chân DATA -> GPIO 4
-//   - MQ-135 (khí / CO2 ước lượng, nguồn 5V): AO -> cầu chia áp 2 điện trở bằng nhau -> GPIO 34, DO để trống
+//   - DHT22  (nhiệt độ + độ ẩm)   : chân DATA -> GPIO 33
+//   - MQ-135 (khí / CO2 ước lượng, nguồn 5V): AO -> cầu chia áp 2 điện trở bằng nhau -> GPIO 32, DO để trống
+//   Analog chỉ đọc được trên ADC1 (GPIO 32-36, 39) khi bật Wi-Fi; ADC2 (0, 2, 4, 12-15, 25-27) bị Wi-Fi chiếm
 // Thiết bị điều khiển qua module relay: phun sương GPIO 14, quạt GPIO 27, đèn LED GPIO 26, sưởi GPIO 25
 // Thư viện (Arduino IDE > Library Manager): "DHT sensor library" (Adafruit), "Adafruit Unified Sensor", "ArduinoJson" (v7)
 //
@@ -22,12 +23,12 @@ const char* SERVER     = "http://192.168.1.10:8080";      // IP LAN của máy c
 const char* DEVICE_KEY = "DAN_API_KEY_CUA_ESP32";         // Web > Thiết bị & camera > API key
 
 // ---------- CHÂN KẾT NỐI ----------
-#define DHT_PIN 4
+#define DHT_PIN 33                      // D33
 const int RELAY_MIST = 14, RELAY_FAN = 27, RELAY_LIGHT = 26, RELAY_HEATER = 25;
 const bool RELAY_ACTIVE_LOW = true;    // đa số module relay bật khi chân ở mức LOW; đổi false nếu ngược lại
 const bool LED_DIRECT = false;         // true nếu LED đèn/sưởi cắm THẲNG vào GPIO 26/25 (không qua relay)
 const bool HAS_CO2_SENSOR = true;      // đặt false nếu chưa lắp MQ-135
-#define MQ_PIN 34                      // chân analog ADC1, vẫn đọc được khi bật Wi-Fi
+#define MQ_PIN 32                      // D32 (ADC1). Không dùng chân ADC2 vì bị Wi-Fi chiếm
 
 // ---------- QUY ĐỔI MQ-135 ----------
 // MQ-135 đo chung nhiều loại khí, giá trị chỉ là ƯỚC LƯỢNG: quy đổi tuyến tính ADC 0..4095 -> 400..5000 ppm
