@@ -1,7 +1,7 @@
 // ===== FIRMWARE ESP32: đọc cảm biến -> gửi lên server -> nhận lệnh bật/tắt thiết bị =====
 // Cảm biến (đề yêu cầu nhiệt độ, độ ẩm và CO2):
 //   - DHT22  (nhiệt độ + độ ẩm)   : chân DATA -> GPIO 4
-//   - MH-Z19B (CO2, UART, nguồn 5V): TX cảm biến -> GPIO 16 (RX2), RX cảm biến -> GPIO 17 (TX2)
+//   - MQ-135 (khí / CO2 ước lượng, nguồn 5V): AO -> cầu chia áp 2 điện trở bằng nhau -> GPIO 34, DO để trống
 // Thiết bị điều khiển qua module relay: phun sương, quạt, đèn LED, sưởi (GPIO 25, 26, 27, 14)
 // Thư viện (Arduino IDE > Library Manager): "DHT sensor library" (Adafruit), "Adafruit Unified Sensor", "ArduinoJson" (v7)
 //
@@ -25,7 +25,13 @@ const char* DEVICE_KEY = "DAN_API_KEY_CUA_ESP32";         // Web > Thiết bị 
 #define DHT_PIN 4
 const int RELAY_MIST = 25, RELAY_FAN = 26, RELAY_LIGHT = 27, RELAY_HEATER = 14;
 const bool RELAY_ACTIVE_LOW = true;    // đa số module relay bật khi chân ở mức LOW; đổi false nếu ngược lại
-const bool HAS_CO2_SENSOR = true;      // đặt false nếu chưa lắp MH-Z19B
+const bool HAS_CO2_SENSOR = true;      // đặt false nếu chưa lắp MQ-135
+#define MQ_PIN 34                      // chân analog ADC1, vẫn đọc được khi bật Wi-Fi
+
+// ---------- QUY ĐỔI MQ-135 ----------
+// MQ-135 đo chung nhiều loại khí, giá trị chỉ là ƯỚC LƯỢNG: quy đổi tuyến tính ADC 0..4095 -> 400..5000 ppm
+const int MQ_RAW_MIN = 50;             // dưới mức này coi như chưa cắm dây AO
+const int CO2_MIN_PPM = 400, CO2_MAX_PPM = 5000;
 
 // ---------- THỜI GIAN ----------
 const unsigned long SEND_EVERY_MS    = 10000;   // gửi dữ liệu mỗi 10 giây
@@ -35,7 +41,6 @@ const unsigned long FAILSAFE_MS      = 120000;  // mất server 2 phút -> tắt
 const int HTTP_RETRIES = 3;
 
 DHT dht(DHT_PIN, DHT22);
-HardwareSerial co2Serial(2);           // UART2 cho MH-Z19B
 unsigned long lastSend = 0, lastPoll = 0, lastServerOk = 0;
 
 // ---------- RELAY ----------
@@ -67,19 +72,16 @@ void applyCommands(const String& json) {
   lastServerOk = millis();
 }
 
-// ---------- CẢM BIẾN CO2 ----------
-// Đọc CO2 (ppm) từ MH-Z19B. Trả -1 nếu lỗi. Cảm biến cần làm nóng ~3 phút sau khi cấp nguồn.
+// ---------- CẢM BIẾN KHÍ MQ-135 ----------
+// Lấy trung bình 10 lần đọc ở chân analog, trả ppm ước lượng hoặc -1 nếu lỗi.
+// Cảm biến cần làm nóng 1-3 phút sau khi cấp nguồn thì số đo mới ổn định.
 int readCO2() {
   if (!HAS_CO2_SENSOR) return -1;
-  const byte cmd[9] = {0xFF, 0x01, 0x86, 0x00, 0x00, 0x00, 0x00, 0x00, 0x79};
-  byte res[9];
-  while (co2Serial.available()) co2Serial.read();   // xóa dữ liệu cũ
-  co2Serial.write(cmd, 9);
-  if (co2Serial.readBytes(res, 9) != 9 || res[0] != 0xFF || res[1] != 0x86) return -1;
-  byte sum = 0;
-  for (int i = 1; i < 8; i++) sum += res[i];
-  if ((byte)(0xFF - sum + 1) != res[8]) return -1;   // sai checksum
-  return res[2] * 256 + res[3];
+  long sum = 0;
+  for (int i = 0; i < 10; i++) { sum += analogRead(MQ_PIN); delay(5); }
+  int raw = sum / 10;                           // 0..4095
+  if (raw < MQ_RAW_MIN) return -1;
+  return map(raw, 0, 4095, CO2_MIN_PPM, CO2_MAX_PPM);
 }
 
 // ---------- WI-FI ----------
@@ -159,8 +161,8 @@ void setup() {
   for (int p : pins) pinMode(p, OUTPUT);
   allRelaysOff();                                   // mặc định tắt hết khi khởi động
   dht.begin();
-  co2Serial.begin(9600, SERIAL_8N1, 16, 17);
-  co2Serial.setTimeout(1000);
+  analogReadResolution(12);                         // ADC 0..4095
+  analogSetPinAttenuation(MQ_PIN, ADC_11db);        // đo được tới ~3.1V
   WiFi.mode(WIFI_STA);
   ensureWifi();
   lastServerOk = millis();
