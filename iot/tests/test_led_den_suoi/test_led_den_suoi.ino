@@ -13,7 +13,7 @@
 
 const int RELAY_LIGHT  = 26;
 const int RELAY_HEATER = 25;
-const bool RELAY_ACTIVE_LOW = true;   // relay SONGLE xanh: LOW = bật
+const bool RELAY_ACTIVE_LOW = false;  // module đang dùng: HIGH = bật
 
 bool lightOn = false, heaterOn = false;
 bool autoMode = false;
