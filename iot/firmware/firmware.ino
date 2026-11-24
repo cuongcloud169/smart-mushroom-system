@@ -127,6 +127,8 @@ bool ensureWifi() {
 void sendReading() {
   float t = dht.readTemperature();
   float h = dht.readHumidity();
+  // DHT22 hở dây thường trả 0°C và 0% (vẫn đúng checksum) -> coi như lỗi, không gửi
+  if ((t == 0 && h == 0) || t < -10 || t > 60 || h <= 0 || h > 100) { t = NAN; h = NAN; }
   int co2 = readCO2();
   if (isnan(t) || isnan(h)) {
     Serial.println("Loi doc DHT22 (kiem tra day DAT -> D33, VCC -> 3V3, GND)");
