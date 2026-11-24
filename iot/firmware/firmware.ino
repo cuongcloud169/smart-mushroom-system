@@ -66,12 +66,23 @@ void applyCommand(const char* kind, bool on) {
   Serial.printf("  Lenh: %s -> %s\n", kind, on ? "BAT" : "TAT");
 }
 
-// Đọc JSON {"commands":[{"kind":"mist","state":true}, ...]} và bật/tắt relay
+// true: đèn và sưởi chỉ BẬT khi có lệnh bật tay (mode = "manual"); lệnh tự động bị bỏ qua -> giữ tắt
+// false: đèn và sưởi chạy theo cả lệnh tự động lẫn lệnh tay
+const bool LIGHT_HEATER_MANUAL_ONLY = false;
+
+// Đọc JSON {"commands":[{"kind":"mist","state":true,"mode":"auto"}, ...]} và bật/tắt relay
 void applyCommands(const String& json) {
   JsonDocument res;
   if (deserializeJson(res, json)) return;
   for (JsonObject c : res["commands"].as<JsonArray>()) {
-    applyCommand(c["kind"], c["state"] | false);
+    const char* kind = c["kind"];
+    bool on = c["state"] | false;
+    const char* mode = c["mode"] | "auto";
+    if (LIGHT_HEATER_MANUAL_ONLY && kind &&
+        (!strcmp(kind, "light") || !strcmp(kind, "heater")) && strcmp(mode, "manual") != 0) {
+      on = false;
+    }
+    applyCommand(kind, on);
   }
   lastServerOk = millis();
 }
