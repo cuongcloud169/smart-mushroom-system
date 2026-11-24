@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../api.dart';
 import '../widgets.dart';
+import '../mjpeg_view.dart';
 import 'delivery_page.dart';
 
 /// Chi tiết khay: camera, nhiệt độ/độ ẩm/CO2 + biểu đồ, tiến độ, lịch thu hoạch, yêu cầu nhận/giao
@@ -48,8 +49,25 @@ class _TrayDetailPageState extends State<TrayDetailPage> {
     // Dữ liệu môi trường làm mới mỗi 10 giây; ảnh camera làm mới mỗi 2 giây (gần thời gian thực)
     dataTimer = Timer.periodic(const Duration(seconds: 10), (_) => load());
     cameraTimer = Timer.periodic(const Duration(seconds: 2), (_) {
-      if (mounted && cameraUrl != null) setState(() => frame++);
+      // Chỉ ảnh tĩnh (snapshot) mới cần tải lại; luồng MJPEG tự chạy liên tục
+      if (mounted && cameraUrl != null && !isMjpeg(cameraUrl!)) setState(() => frame++);
     });
+  }
+
+  /// Đường dẫn là ảnh tĩnh (.jpg/.jpeg/.png) thì tải lại định kỳ, còn lại coi là luồng MJPEG
+  bool isMjpeg(String url) {
+    final path = Uri.tryParse(url)?.path.toLowerCase() ?? url.toLowerCase();
+    if (path.contains('mjpg') || path.contains('mjpeg')) return true;
+    return !(path.endsWith('.jpg') || path.endsWith('.jpeg') || path.endsWith('.png'));
+  }
+
+  Widget cameraView(String url) {
+    Widget fail(String msg) => SizedBox(height: 160, child: Center(child: Text(msg)));
+    if (isMjpeg(url)) {
+      return MjpegView(url: url, errorText: 'Không kết nối được camera');
+    }
+    return Image.network('$url${url.contains('?') ? '&' : '?'}t=$frame',
+        gaplessPlayback: true, errorBuilder: (_, __, ___) => fail('Không kết nối được camera'));
   }
 
   @override
@@ -71,14 +89,12 @@ class _TrayDetailPageState extends State<TrayDetailPage> {
         onRefresh: load,
         child: ListView(padding: const EdgeInsets.all(12), children: [
           if (error != null) Text(error!, style: const TextStyle(color: Colors.red)),
-          // Camera: ảnh snapshot/MJPEG từ camera IP, làm mới mỗi 2 giây
+          // Camera: luồng MJPEG (xem liên tục) hoặc ảnh snapshot (làm mới mỗi 2 giây)
           Card(
             clipBehavior: Clip.antiAlias,
             child: cameraUrl == null
                 ? const SizedBox(height: 160, child: Center(child: Text('Khay chưa có camera')))
-                : Image.network('$cameraUrl${cameraUrl!.contains('?') ? '&' : '?'}t=$frame',
-                    gaplessPlayback: true,
-                    errorBuilder: (_, __, ___) => const SizedBox(height: 160, child: Center(child: Text('Không kết nối được camera')))),
+                : cameraView(cameraUrl!),
           ),
           Row(children: [
             Metric('Nhiệt độ', latest?['temperature'], '°C'),
