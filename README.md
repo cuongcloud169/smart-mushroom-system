@@ -30,7 +30,7 @@
 | RESTful API + CSDL | **Java 21, Spring Boot**, Spring Security (JWT, BCrypt), Spring Data JPA + JdbcTemplate, PostgreSQL 16, Flyway, Swagger | `backend/` |
 | Web quản trị (Admin, Farm Operator) | ReactJS 18 (Vite), Recharts | `web/` |
 | App khách hàng | Flutter 3 | `app/` |
-| IoT | ESP32 (Arduino), DHT22, MH-Z19B, relay 4 kênh | `iot/firmware/` |
+| IoT | ESP32 (Arduino), DHT22, MQ-135, relay 4 kênh | `iot/` |
 | Giả lập ESP32 | Node.js | `tools/` |
 | Kiểm thử end-to-end | Python | `tests/` |
 | Triển khai | Docker, docker-compose | `docker-compose.yml`, `backend/Dockerfile`, `web/Dockerfile` |
@@ -88,12 +88,20 @@ smart-mushroom-system/
 │   └── src/pages/        # Dashboard, Rooms, Trays, Rentals, Monitor, Alerts, Devices,
 │                         # Settings, Harvests, Deliveries, Reports, Users...
 ├── app/                           # App Flutter cho khách hàng
-│   └── lib/pages/        # Đăng nhập, Thuê khay, Khay của tôi, Chi tiết khay, Thông báo...
-├── iot/firmware/firmware.ino      # Firmware ESP32
+│   ├── lib/pages/        # Đăng nhập, Thuê khay, Khay của tôi, Chi tiết khay, Thông báo...
+│   ├── lib/mjpeg_view.dart        # Hiển thị camera dạng luồng MJPEG
+│   └── HUONG_DAN_ANDROID.md       # Build APK, gắn camera điện thoại
+├── iot/                           # ESP32
+│   ├── firmware/firmware.ino      # Firmware chính
+│   ├── tests/            # Sketch kiểm tra từng linh kiện: MQ-135, relay, LED
+│   ├── examples/         # Firmware rút gọn chỉ điều khiển phun sương
+│   └── README.md         # Linh kiện, sơ đồ chân, nạp firmware, xử lý lỗi
 ├── tools/simulate-esp32.mjs       # Giả lập ESP32
 ├── tests/e2e_test.py              # Kiểm thử end-to-end toàn bộ API
 └── docker-compose.yml             # Chạy PostgreSQL + backend + web
 ```
+
+> Thư mục gốc còn bản backend thử nghiệm ban đầu (`src/`, `pom.xml`, `mvnw`, package `com.smartmushroom`, cổng 8082). Bản này **không được dùng**; backend chính là `backend/`.
 
 ---
 
@@ -132,7 +140,7 @@ Lần chạy đầu, **Flyway** tự tạo bảng và `DataSeeder` tạo dữ li
 | `DB_URL`, `DB_USER`, `DB_PASSWORD` | Kết nối PostgreSQL | `jdbc:postgresql://localhost:5432/mushroom`, `mushroom`, `mushroom` |
 | `JWT_SECRET` | Khóa ký token (≥ 32 ký tự), **đổi khi triển khai thật** | chuỗi dev |
 | `ADMIN_INVITE_CODE` | Mã mời đăng ký Quản trị viên | `MUSHROOM-ADMIN-2026` |
-| `CORS_ORIGINS` | Địa chỉ web được phép gọi API | `http://localhost:5173` |
+| `CORS_ORIGINS` | Địa chỉ web được phép gọi API (cách nhau bằng dấu phẩy) | `http://localhost:5173,http://localhost:3000` |
 
 ### 5.3. Web
 ```bash
@@ -151,16 +159,20 @@ flutter pub get
 flutter run                                                      # máy ảo Android (10.0.2.2:8080)
 flutter run --dart-define=API_URL=http://192.168.1.10:8080/api   # điện thoại thật: IP LAN của máy chạy backend
 ```
-Android chặn HTTP thường: thêm `android:usesCleartextTraffic="true"` vào thẻ `<application>` trong `AndroidManifest.xml` (chỉ khi chạy thử).
+Sửa `android/app/src/main/AndroidManifest.xml` trước khi build: thêm `<uses-permission android:name="android.permission.INTERNET"/>` (bắt buộc với bản APK release) và `android:usesCleartextTraffic="true"` trong thẻ `<application>` (cho phép gọi HTTP khi chạy thử).
+
+Build file cài đặt: `flutter build apk --dart-define=API_URL=http://<IP LAN>:8080/api`. Hướng dẫn đầy đủ (Developer Mode trên Windows, NDK, gắn camera điện thoại): xem [`app/HUONG_DAN_ANDROID.md`](app/HUONG_DAN_ANDROID.md).
 
 ### 5.5. ESP32
-Arduino IDE → cài board **esp32 by Espressif** và thư viện *DHT sensor library*, *Adafruit Unified Sensor*, *ArduinoJson* → sửa Wi-Fi, địa chỉ server, API key ở đầu `iot/firmware/firmware.ino` → chọn **ESP32 Dev Module** → Upload.
+Arduino IDE → cài board **esp32 by Espressif** và thư viện *DHT sensor library*, *Adafruit Unified Sensor*, *ArduinoJson* → sửa Wi-Fi, địa chỉ server, API key ở đầu `iot/firmware/firmware.ino` → chọn **ESP32 Dev Module** → Upload. ESP32 gửi dữ liệu mỗi 2 giây, hỏi lệnh mỗi 1 giây.
 
 | Thiết bị | Chân ESP32 |
 |---|---|
-| DHT22 DATA | GPIO 4 |
-| MH-Z19B TX / RX | GPIO 16 / GPIO 17 |
-| Relay phun sương / quạt / đèn / sưởi | GPIO 25 / 26 / 27 / 14 |
+| DHT22 DATA | GPIO 33 |
+| MQ-135 AO (qua cầu chia áp 2 điện trở bằng nhau) | GPIO 32 |
+| Relay phun sương / quạt / đèn / sưởi | GPIO 14 / 27 / 26 / 25 (module relay kích mức HIGH) |
+
+Sơ đồ đấu dây, nguồn, sketch kiểm tra từng linh kiện và cách xử lý lỗi: xem [`iot/README.md`](iot/README.md).
 
 Chưa có phần cứng thì dùng giả lập:
 ```bash
@@ -274,7 +286,8 @@ git push origin feature/KAN-xx-ten-chuc-nang
 ## 12. Giới hạn hiện tại
 
 - Thông báo hiển thị trong app (kiểm tra mỗi 30 giây), **chưa đẩy ra màn hình khóa** điện thoại. Muốn có cần thêm Firebase Cloud Messaging (tạo project Firebase).
-- Camera hiển thị ảnh làm mới mỗi 2 giây (hợp với camera có URL snapshot/MJPEG); luồng RTSP/HLS cần thêm gói `video_player`.
+- Camera hỗ trợ ảnh snapshot (`.jpg`, làm mới mỗi 2 giây) và luồng video MJPEG; luồng RTSP/HLS cần thêm gói `video_player`.
+- Giá trị CO₂ đo bằng MQ-135 chỉ là ước lượng (cảm biến đo chung nhiều loại khí); đo CO₂ chính xác cần cảm biến NDIR như MH-Z19B hoặc SCD40.
 - Thanh toán được ghi nhận khi nhân viên duyệt đơn (chưa tích hợp cổng thanh toán online).
 
 ---
