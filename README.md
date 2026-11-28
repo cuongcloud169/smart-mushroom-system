@@ -30,7 +30,7 @@
 | RESTful API + CSDL | **Java 21, Spring Boot**, Spring Security (JWT, BCrypt), Spring Data JPA + JdbcTemplate, PostgreSQL 16, Flyway, Swagger | `backend/` |
 | Web quản trị (Admin, Farm Operator) | ReactJS 18 (Vite), Recharts | `web/` |
 | App khách hàng | Flutter 3 | `app/` |
-| IoT | ESP32 (Arduino), DHT22, MH-Z19B, relay 4 kênh | `iot/firmware/` |
+| IoT | ESP32 (Arduino), DHT22, MQ-135, relay 4 kênh | `iot/` |
 | Giả lập ESP32 | Node.js | `tools/` |
 | Kiểm thử end-to-end | Python | `tests/` |
 | Triển khai | Docker, docker-compose | `docker-compose.yml`, `backend/Dockerfile`, `web/Dockerfile` |
@@ -154,13 +154,15 @@ flutter run --dart-define=API_URL=http://192.168.1.10:8080/api   # điện tho�
 Android chặn HTTP thường: thêm `android:usesCleartextTraffic="true"` vào thẻ `<application>` trong `AndroidManifest.xml` (chỉ khi chạy thử).
 
 ### 5.5. ESP32
-Arduino IDE → cài board **esp32 by Espressif** và thư viện *DHT sensor library*, *Adafruit Unified Sensor*, *ArduinoJson* → sửa Wi-Fi, địa chỉ server, API key ở đầu `iot/firmware/firmware.ino` → chọn **ESP32 Dev Module** → Upload.
+Arduino IDE → cài board **esp32 by Espressif** và thư viện *DHT sensor library*, *Adafruit Unified Sensor*, *ArduinoJson* → sửa Wi-Fi, địa chỉ server, API key ở đầu `iot/firmware/firmware.ino` → chọn **ESP32 Dev Module** → Upload. ESP32 gửi dữ liệu mỗi 2 giây, hỏi lệnh mỗi 1 giây.
 
 | Thiết bị | Chân ESP32 |
 |---|---|
-| DHT22 DATA | GPIO 4 |
-| MH-Z19B TX / RX | GPIO 16 / GPIO 17 |
-| Relay phun sương / quạt / đèn / sưởi | GPIO 25 / 26 / 27 / 14 |
+| DHT22 DATA | GPIO 33 |
+| MQ-135 AO (qua cầu chia áp 2 điện trở bằng nhau) | GPIO 32 |
+| Relay phun sương / quạt / đèn / sưởi | GPIO 14 / 27 / 26 / 25 (module relay kích mức HIGH) |
+
+Sơ đồ đấu dây, nguồn, sketch kiểm tra từng linh kiện và cách xử lý lỗi: xem [`iot/README.md`](iot/README.md).
 
 Chưa có phần cứng thì dùng giả lập:
 ```bash
