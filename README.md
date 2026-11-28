@@ -151,7 +151,9 @@ flutter pub get
 flutter run                                                      # máy ảo Android (10.0.2.2:8080)
 flutter run --dart-define=API_URL=http://192.168.1.10:8080/api   # điện thoại thật: IP LAN của máy chạy backend
 ```
-Android chặn HTTP thường: thêm `android:usesCleartextTraffic="true"` vào thẻ `<application>` trong `AndroidManifest.xml` (chỉ khi chạy thử).
+Sửa `android/app/src/main/AndroidManifest.xml` trước khi build: thêm `<uses-permission android:name="android.permission.INTERNET"/>` (bắt buộc với bản APK release) và `android:usesCleartextTraffic="true"` trong thẻ `<application>` (cho phép gọi HTTP khi chạy thử).
+
+Build file cài đặt: `flutter build apk --dart-define=API_URL=http://<IP LAN>:8080/api`. Hướng dẫn đầy đủ (Developer Mode trên Windows, NDK, gắn camera điện thoại): xem [`app/HUONG_DAN_ANDROID.md`](app/HUONG_DAN_ANDROID.md).
 
 ### 5.5. ESP32
 Arduino IDE → cài board **esp32 by Espressif** và thư viện *DHT sensor library*, *Adafruit Unified Sensor*, *ArduinoJson* → sửa Wi-Fi, địa chỉ server, API key ở đầu `iot/firmware/firmware.ino` → chọn **ESP32 Dev Module** → Upload. ESP32 gửi dữ liệu mỗi 2 giây, hỏi lệnh mỗi 1 giây.
@@ -276,7 +278,8 @@ git push origin feature/KAN-xx-ten-chuc-nang
 ## 12. Giới hạn hiện tại
 
 - Thông báo hiển thị trong app (kiểm tra mỗi 30 giây), **chưa đẩy ra màn hình khóa** điện thoại. Muốn có cần thêm Firebase Cloud Messaging (tạo project Firebase).
-- Camera hiển thị ảnh làm mới mỗi 2 giây (hợp với camera có URL snapshot/MJPEG); luồng RTSP/HLS cần thêm gói `video_player`.
+- Camera hỗ trợ ảnh snapshot (`.jpg`, làm mới mỗi 2 giây) và luồng video MJPEG; luồng RTSP/HLS cần thêm gói `video_player`.
+- Giá trị CO₂ đo bằng MQ-135 chỉ là ước lượng (cảm biến đo chung nhiều loại khí); đo CO₂ chính xác cần cảm biến NDIR như MH-Z19B hoặc SCD40.
 - Thanh toán được ghi nhận khi nhân viên duyệt đơn (chưa tích hợp cổng thanh toán online).
 
 ---
