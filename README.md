@@ -140,7 +140,7 @@ Lần chạy đầu, **Flyway** tự tạo bảng và `DataSeeder` tạo dữ li
 | `DB_URL`, `DB_USER`, `DB_PASSWORD` | Kết nối PostgreSQL | `jdbc:postgresql://localhost:5432/mushroom`, `mushroom`, `mushroom` |
 | `JWT_SECRET` | Khóa ký token (≥ 32 ký tự), **đổi khi triển khai thật** | chuỗi dev |
 | `ADMIN_INVITE_CODE` | Mã mời đăng ký Quản trị viên | `MUSHROOM-ADMIN-2026` |
-| `CORS_ORIGINS` | Địa chỉ web được phép gọi API | `http://localhost:5173` |
+| `CORS_ORIGINS` | Địa chỉ web được phép gọi API (cách nhau bằng dấu phẩy) | `http://localhost:5173,http://localhost:3000` |
 
 ### 5.3. Web
 ```bash
