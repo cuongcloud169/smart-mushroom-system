@@ -76,7 +76,7 @@ Giá trị CO2 từ MQ-135 là quy đổi tuyến tính 400–5000 ppm, chỉ ma
 
 | Sketch | Kiểm tra |
 |---|---|
-| `test_mq135` | Số đọc ADC, điện áp chân D34 và ppm ước lượng của MQ-135 |
+| `test_mq135` | Số đọc ADC, điện áp chân D32 và ppm ước lượng của MQ-135 |
 | `test_relay_phun_suong` | Bật/tắt relay phun sương bằng Serial (1 / 0 / a) |
 | `test_led_den_suoi` | 2 LED đèn, sưởi qua relay (d / s / 1 / 0 / a) |
 | `test_led_truc_tiep` | 2 LED cắm thẳng vào ESP32, tự chạy khi cấp điện |
