@@ -88,12 +88,20 @@ smart-mushroom-system/
 │   └── src/pages/        # Dashboard, Rooms, Trays, Rentals, Monitor, Alerts, Devices,
 │                         # Settings, Harvests, Deliveries, Reports, Users...
 ├── app/                           # App Flutter cho khách hàng
-│   └── lib/pages/        # Đăng nhập, Thuê khay, Khay của tôi, Chi tiết khay, Thông báo...
-├── iot/firmware/firmware.ino      # Firmware ESP32
+│   ├── lib/pages/        # Đăng nhập, Thuê khay, Khay của tôi, Chi tiết khay, Thông báo...
+│   ├── lib/mjpeg_view.dart        # Hiển thị camera dạng luồng MJPEG
+│   └── HUONG_DAN_ANDROID.md       # Build APK, gắn camera điện thoại
+├── iot/                           # ESP32
+│   ├── firmware/firmware.ino      # Firmware chính
+│   ├── tests/            # Sketch kiểm tra từng linh kiện: MQ-135, relay, LED
+│   ├── examples/         # Firmware rút gọn chỉ điều khiển phun sương
+│   └── README.md         # Linh kiện, sơ đồ chân, nạp firmware, xử lý lỗi
 ├── tools/simulate-esp32.mjs       # Giả lập ESP32
 ├── tests/e2e_test.py              # Kiểm thử end-to-end toàn bộ API
 └── docker-compose.yml             # Chạy PostgreSQL + backend + web
 ```
+
+> Thư mục gốc còn bản backend thử nghiệm ban đầu (`src/`, `pom.xml`, `mvnw`, package `com.smartmushroom`, cổng 8082). Bản này **không được dùng**; backend chính là `backend/`.
 
 ---
 
