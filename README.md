@@ -101,8 +101,6 @@ smart-mushroom-system/
 └── docker-compose.yml             # Chạy PostgreSQL + backend + web
 ```
 
-> Thư mục gốc còn bản backend thử nghiệm ban đầu (`src/`, `pom.xml`, `mvnw`, package `com.smartmushroom`, cổng 8082). Bản này **không được dùng**; backend chính là `backend/`.
-
 ---
 
 ## 4. Chạy nhanh bằng Docker
